@@ -8,32 +8,24 @@
 
 #include <iostream>
 #include <opencv2/opencv.hpp>
-#include <opencv2/gpu/gpu.hpp>
 #include <string>
 #include <opencv2/nonfree/nonfree.hpp>
-#include <opencv2/objdetect/objdetect.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <sstream>
+#include "util.h"
 
 struct Context
 {
-    cv::CascadeClassifier *cc;
     cv::Mat current_frame;
     
     bool mouse_pressed;
     cv::Point first_pt, second_pt;
     
 	bool is_neg;	// 是否指针负样本.
-    size_t sample_cnt;
+    unsigned int sample_cnt;
 
-	bool is_video; // 输入文件是否为视频 .
-	std::string input_fname;
+	std::string input_fname; // 输入必须是图片列表文件
 };
-
-// 进行任何处理 ...
-static void run_one_frame(Context &ctx, cv::Mat &frame)
-{
-}
 
 static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 {
@@ -143,35 +135,13 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 
 	/**
 		-neg
-		-type [pic|video]
 		-cnt_begin
 
 	 */
 
 	while (arg < argc) {
 		if (argv[arg][0] == '-') {
-			if (!strcmp(&argv[arg][1], "type")) {
-				// -type <[pic|video]>
-				if (arg + 1 <= argc) {
-					if (!strcmp(argv[arg+1], "pic")) {
-						ctx->is_video = false;
-						arg++;
-					}
-					else if (!strcmp(argv[arg+1], "video")) {
-						ctx->is_video = true;
-						arg++;
-					}
-					else {
-						fprintf(stderr, "ERR: -type [pic|video] \n");
-						return -1;
-					}
-				}
-				else {
-					fprintf(stderr, "ERR: -type <[pic|video]> \n");
-					return -1;
-				}
-			}
-			else if (!strcmp(&argv[arg][1], "neg")) {
+			if (!strcmp(&argv[arg][1], "neg")) {
 				// -neg 制作负样本 .
 				ctx->is_neg = true;
 			}
@@ -193,6 +163,8 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 
 		arg++;
 	}
+
+	return 0;
 }
 
 int main(int argc, const char * argv[])
@@ -200,60 +172,77 @@ int main(int argc, const char * argv[])
     Context ctx;
     ctx.sample_cnt = 0;
 	ctx.mouse_pressed = false;
-	ctx.is_video = false; // 缺省使用pic..
 	ctx.is_neg = false;
 
 	if (parse_args(argc, argv, &ctx) < 0) {
 		return -1;
 	}
 
-    std::cout << cv::getBuildInformation() << std::endl;
-    
+	if (ctx.input_fname.empty()) {
+		fprintf(stderr, "ERR: MUST input image_list_file_name\n");
+		return -1;
+	}
+
+	std::vector<std::string> files = util_load_image_list(ctx.input_fname.c_str());
+	if (files.empty()) {
+		fprintf(stderr, "ERR: NO image files\n");
+		return -1;
+	}
+
     cv::namedWindow("main");
-    cv::VideoCapture cap;
 	bool quit = false;
-	cv::Mat pic;
     
     cv::setMouseCallback("main", mouse_callback, &ctx);
-    
-	if (ctx.input_fname.empty()) {
-		cap.open(0);	// try camera ??
-		ctx.is_video = true;
-	}
-	else if (ctx.is_video) {
-		cap.open(ctx.input_fname);
-	}
-	else {
-		// picture
-		pic = cv::imread(ctx.input_fname);
-		if (pic.cols == 0 || pic.rows == 0) {
-			std::cout << "ERR: can't load pic: " << ctx.input_fname << std::endl;
-			return -1;
-		}
-	}
+	cv::Mat pic;
 
-	while (!quit) {
-		if (ctx.is_video) {
-			cap >> ctx.current_frame;
-		}
+	while (pic.cols == 0 && !files.empty()) {
+		pic = cv::imread(files.back());
+		files.pop_back();
+
+		if (pic.cols > 0) break;
 		else {
-			ctx.current_frame = pic.clone();
+			fprintf(stderr, "ERR: read img %s err\n", files.back().c_str());
 		}
+	}
 
-		if (ctx.current_frame.cols == 0 || ctx.current_frame.rows == 0) {
-			continue;
-		}
+	if (pic.cols > 1920) {
+		cv::resize(pic, pic, cv::Size(800, 600));
+	}
 
-        run_one_frame(ctx, ctx.current_frame);
-        
+	while (pic.cols > 0 && !quit) {
+		ctx.current_frame = pic.clone();
+
 		if (!ctx.mouse_pressed) {
 			// FIXME: 如果鼠标按下时，可能导致覆盖 ..
 			cv::imshow("main", ctx.current_frame);
 		}
         
-        if (cv::waitKey(30) == 27) {
+		int key = cv::waitKey(30);
+        if (key == 27) {
+			fprintf(stderr, "key: ESC\n");
             quit = true;
         }
+		else if (key == 32) {
+			fprintf(stderr, "key: SPACE\n");
+			pic.release();
+			pic.cols = 0;
+			while (pic.cols == 0 && !files.empty()) {
+				pic = cv::imread(files.back());
+				files.pop_back();
+
+				if (pic.cols > 0) break;
+				else {
+					quit = true;
+					fprintf(stderr, "ERR: read img %s err\n", files.back().c_str());
+				}
+			}
+
+			if (pic.cols > 1920) {
+				cv::resize(pic, pic, cv::Size(800, 600));
+			}
+
+			ctx.mouse_pressed = false;
+		}
     }
 
     return 0;
