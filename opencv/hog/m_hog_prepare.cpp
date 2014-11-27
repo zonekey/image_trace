@@ -209,8 +209,14 @@ int main(int argc, const char * argv[])
 		cv::resize(pic, pic, cv::Size(800, 600));
 	}
 
-	while (pic.cols > 0 && !quit) {
+	if (pic.cols > 0) {
 		ctx.current_frame = pic.clone();
+	}
+
+	while (pic.cols > 0 && !quit) {
+		if (ctx.mouse_pressed) {
+			ctx.current_frame = pic.clone();
+		}
 
 		if (!ctx.mouse_pressed) {
 			// FIXME: 如果鼠标按下时，可能导致覆盖 ..
