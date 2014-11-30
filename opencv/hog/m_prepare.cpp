@@ -15,6 +15,9 @@
 #include "util.h"
 #include <sys/stat.h>
 
+#define WIDTH 64
+#define HEIGHT 64
+
 struct Context
 {
     cv::Mat current_frame;
@@ -27,6 +30,28 @@ struct Context
 
 	std::string input_fname; // 输入是图片列表文件.
 };
+
+static void rotateMe(const cv::Mat &src, cv::Mat &dst, const cv::Rect rc, int angle)
+{
+	/** 将 src 以 rc 中心为圆心，旋转 angle 度，然后再截取 rc 大小的图像，保存
+	  	到 dst 中.
+
+		矩形旋转后，
+	 */
+
+	float radian = angle * CV_PI / 180.0;
+	float rotated_w = rc.width * fabs(cos(radian)) + rc.height * fabs(sin(radian));
+
+	cv::Mat rotated = cv::Mat::zeros(src.cols, src.rows, src.type());
+	cv::Point center(rc.x + rc.width / 2, rc.y + rc.height / 2);
+//	double scale = rc.width / rotated_w;
+	double scale = 1.0;
+
+	cv::Mat rotate_mat = cv::getRotationMatrix2D(center, angle, scale);
+	cv::warpAffine(src, rotated, rotate_mat, src.size());
+
+	dst = cv::Mat(rotated, rc);
+}
 
 static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 {
@@ -74,9 +99,9 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					cv::Rect t(0, 0, ctx->current_frame.cols, ctx->current_frame.rows);
 					rc &= t;
 
-					// 拉伸为 64x64
+					// 拉伸为 WIDTH * HEIGHT
                     cv::Mat m(ctx->current_frame, rc), m2;
-					cv::resize(m, m2, cv::Size(64, 64));
+					cv::resize(m, m2, cv::Size(WIDTH, HEIGHT));
 
                     std::stringstream ss;
 					ss << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
@@ -86,6 +111,24 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
                     std::stringstream ss2;
 					ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss2.str(), m2);
+
+					// 顺时针旋转 90 度，每隔10度 
+					for (int angle = 10; angle <= 90; angle += 10) {
+						cv::Mat rp;
+						rotateMe(ctx->current_frame, rp, rc, angle);
+						if (rp.cols != WIDTH || rp.rows != HEIGHT) {
+							cv::resize(rp, rp, cv::Size(WIDTH, HEIGHT));
+						}
+
+						std::stringstream ss;
+						ss << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
+						cv::imwrite(ss.str(), rp);
+
+						cv::flip(rp, rp, 1);	// 左右反转 .
+						std::stringstream ss2;
+						ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
+						cv::imwrite(ss2.str(), rp);
+					}
 
 					if (ctx->is_neg) {
 						char fname[128];

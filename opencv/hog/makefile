@@ -1,4 +1,4 @@
-all: m_prepare m_hog_train m_hog_test m_cas_test m_neg_maker
+all: m_prepare m_hog_train m_hog_test m_cas_test m_neg_maker test_rotate
 
 CFLAGS=`pkg-config --cflags opencv`
 LDFLAGS=`pkg-config --libs opencv`
@@ -19,6 +19,9 @@ m_cas_test: m_haar_cascade_test.cpp
 	$(CXX) -o $@ -O2 $(CFLAGS) $^ $(LDFLAGS)
 
 m_neg_maker: m_neg_maker.cpp
+	$(CXX) -o $@ -O2 $(CFLAGS) $^ $(LDFLAGS)
+
+test_rotate: test_rotate.cpp
 	$(CXX) -o $@ -O2 $(CFLAGS) $^ $(LDFLAGS)
 
 clean:
