@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <opencv2/opencv.hpp>
 
-static std::string _cas_fname = "cascase.xml";
+static std::string _cas_fname = "cascade/cascade.xml";
 static std::string _input_fname;
 
 static int parse_args(int argc, char **argv)
