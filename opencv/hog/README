@@ -1,0 +1,9 @@
+此目录用于训练 Haar cascade 和 HOG.
+
+m_prepare: 用于生成正样本和负样本(其实副样本应该使用随机生成更好)
+	m_prepare [-cnt_begin N] [-neg] <image.list>
+		cnt_begin 指的生成的文件的名字, 防止覆盖原来的文件
+		neg 抓取负样本
+		image.list 用于保存图片文件的列表, 每行一个图片文件;
+
+	负样本可以有选择的选取，我们可以选择大量的无人教室的图片，包括桌椅，电教设备 ...

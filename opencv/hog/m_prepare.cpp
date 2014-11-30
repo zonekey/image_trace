@@ -13,6 +13,7 @@
 #include <opencv2/highgui/highgui.hpp>
 #include <sstream>
 #include "util.h"
+#include <sys/stat.h>
 
 struct Context
 {
@@ -24,7 +25,7 @@ struct Context
 	bool is_neg;	// 是否指针负样本.
     unsigned int sample_cnt;
 
-	std::string input_fname; // 输入必须是图片列表文件
+	std::string input_fname; // 输入是图片列表文件.
 };
 
 static void mouse_callback(int event, int x, int y, int flags, void* userdata)
@@ -69,17 +70,21 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 						rc.height = rc.width;
 					}
 
+					// 但也不能越界 :)
+					cv::Rect t(0, 0, ctx->current_frame.cols, ctx->current_frame.rows);
+					rc &= t;
+
 					// 拉伸为 64x64
                     cv::Mat m(ctx->current_frame, rc), m2;
 					cv::resize(m, m2, cv::Size(64, 64));
 
                     std::stringstream ss;
-					ss << (ctx->is_neg ? "negative_" : "positive_") << ctx->sample_cnt++ << ".jpg";
+					ss << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss.str(), m2);
 
 					cv::flip(m2, m2, 1);	// 左右反转 .
                     std::stringstream ss2;
-					ss2 << (ctx->is_neg ? "negative_" : "positive_") << ctx->sample_cnt++ << ".jpg";
+					ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss2.str(), m2);
 
 					if (ctx->is_neg) {
@@ -87,23 +92,23 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 
 						// XXX: 
 						cv::flip(m2, m2, 0); // 上下翻转.
-						sprintf(fname, "negative_%u.jpg", ctx->sample_cnt++);
+						sprintf(fname, "neg/neg_%u.jpg", ctx->sample_cnt++);
 						cv::imwrite(fname, m2);
 						
 						cv::flip(m2, m2, 1); // 左右.
-						sprintf(fname, "negative_%u.jpg", ctx->sample_cnt++);
+						sprintf(fname, "neg/neg_%u.jpg", ctx->sample_cnt++);
 						cv::imwrite(fname, m2);
 
 						cv::transpose(m2, m2);
-						sprintf(fname, "negative_%u.jpg", ctx->sample_cnt++);
+						sprintf(fname, "neg/neg_%u.jpg", ctx->sample_cnt++);
 						cv::imwrite(fname, m2);
 
 						cv::flip(m2, m2, 1);
-						sprintf(fname, "negative_%u.jpg", ctx->sample_cnt++);
+						sprintf(fname, "neg/neg_%u.jpg", ctx->sample_cnt++);
 						cv::imwrite(fname, m2);
 
 						cv::flip(m2, m2, -1);
-						sprintf(fname, "negative_%u.jpg", ctx->sample_cnt++);
+						sprintf(fname, "neg/neg_%u.jpg", ctx->sample_cnt++);
 						cv::imwrite(fname, m2);
 					}
 
@@ -189,6 +194,13 @@ int main(int argc, const char * argv[])
 		return -1;
 	}
 
+	if (ctx.is_neg) {
+		mkdir("neg", 0775);
+	}
+	else {
+		mkdir("pos", 0775);
+	}
+
     cv::namedWindow("main");
 	bool quit = false;
     
@@ -247,6 +259,7 @@ int main(int argc, const char * argv[])
 				cv::resize(pic, pic, cv::Size(800, 600));
 			}
 
+			ctx.current_frame = pic.clone();
 			ctx.mouse_pressed = false;
 		}
     }
