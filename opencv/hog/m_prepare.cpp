@@ -6,6 +6,8 @@
 //  Copyright (c) 2014年 孙玮. All rights reserved.
 //
 
+#include <stdio.h>
+#include <stdlib.h>
 #include <iostream>
 #include <opencv2/opencv.hpp>
 #include <string>
@@ -112,8 +114,8 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss2.str(), m2);
 
-					// 顺时针旋转 90 度，每隔10度 
-					for (int angle = 10; angle <= 90; angle += 10) {
+					// 顺时针旋转 30 度，每隔3度 
+					for (int angle = 2; angle <= 30 && !ctx->is_neg; angle += 3) {
 						cv::Mat rp;
 						rotateMe(ctx->current_frame, rp, rc, angle);
 						if (rp.cols != WIDTH || rp.rows != HEIGHT) {
@@ -132,6 +134,8 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 
 					if (ctx->is_neg) {
 						char fname[128];
+
+						resize(m2, m2, cv::Size(WIDTH*2, HEIGHT*2));
 
 						// XXX: 
 						cv::flip(m2, m2, 0); // 上下翻转.
@@ -260,7 +264,7 @@ int main(int argc, const char * argv[])
 		}
 	}
 
-	if (pic.cols > 1920) {
+	if (pic.cols >= 1920) {
 		cv::resize(pic, pic, cv::Size(800, 600));
 	}
 
