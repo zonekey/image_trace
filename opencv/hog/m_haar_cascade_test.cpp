@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <opencv2/opencv.hpp>
+#include <opencv2/highgui/highgui.hpp>
 #include <sys/time.h>
 
 static std::string _cas_fname = "cascade/cascade.xml";
@@ -46,6 +47,109 @@ static int parse_args(int argc, char **argv)
 	return 0;
 }
 
+struct Ctx
+{
+    cv::Mat frame, orig;    // orig 为原始图像 clone
+    bool pressed; // 鼠标按下
+    cv::Point first_pt, last_pt;
+    int count;
+};
+
+static void draw_recv_xor(cv::Mat &img, const cv::Rect &rc)
+{
+    /** 逆时针四条线 */
+    cv::LineIterator 
+        l1(img, rc.tl(), cv::Point(rc.x, rc.y+rc.height)),
+        l2(img, cv::Point(rc.x, rc.y+rc.height), rc.br()),
+        l3(img, rc.br(), cv::Point(rc.x+rc.width, rc.y)),
+        l4(img, cv::Point(rc.x+rc.width, rc.y), rc.tl());
+
+    // 使用 ...
+    for (int i = 0; i < l1.count; i++, ++l1) {
+        uchar *p = *l1;
+        *(p) ^= 0, *(p+1) ^= 255, *(p+2) ^= 0;
+    }
+
+    for (int i = 0; i < l2.count; i++, ++l2) {
+        uchar *p = *l2;
+        *(p) ^= 0, *(p+1) ^= 255, *(p+2) ^= 0;
+    }
+
+    for (int i = 0; i < l3.count; i++, ++l3) {
+        uchar *p = *l3;
+        *(p) ^= 0, *(p+1) ^= 255, *(p+2) ^= 0;
+    }
+
+    for (int i = 0; i < l4.count; i++, ++l4) {
+        uchar *p = *l4;
+        *(p) ^= 0, *(p+1) ^= 255, *(p+2) ^= 0;
+    }
+}
+
+
+static void draw_rubber_lines(struct Ctx *ctx, int x, int y)
+{
+    /** 如果 first_pt != last_pt，需要首先擦出 */
+    if (ctx->first_pt.x != ctx->last_pt.x && ctx->first_pt.y != ctx->last_pt.y) {
+        draw_recv_xor(ctx->frame, cv::Rect(ctx->first_pt, ctx->last_pt));
+    }
+
+    ctx->last_pt = cv::Point(x, y);
+
+    if (ctx->first_pt.x != ctx->last_pt.x && ctx->first_pt.y != ctx->last_pt.y) {
+        draw_recv_xor(ctx->frame, cv::Rect(ctx->first_pt, ctx->last_pt));
+    }
+}
+
+static time_t _begin = time(0);
+
+static void mouse_callback(int ev, int x, int y, int flags, void *p)
+{
+    /** 在显示窗口中，通过鼠标，画出检测错的的区域，保存到 neg/ 目录中
+     */
+    struct Ctx *ctx = (struct Ctx*)p;
+
+    switch (ev) {
+        case cv::EVENT_LBUTTONDOWN:
+            ctx->pressed = true;
+            ctx->first_pt = cv::Point(x, y);
+            ctx->last_pt = ctx->first_pt;
+            fprintf(stderr, "left button pressed!\n");
+            break;
+
+        case cv::EVENT_LBUTTONUP:
+            if (ctx->pressed) {
+                // TODO:
+                ctx->pressed = false;
+
+                cv::Rect roi = cv::Rect(ctx->first_pt, cv::Point(x, y));
+                if (roi.area() < 100) {
+                    std::cout << " toooooooooo small area" << std::endl;
+                }
+                else {
+                    std::stringstream fname;
+                    fname << "neg/hard_neg_" << _begin << ctx->count++ << ".jpg";
+                    cv::Mat pic = cv::Mat(ctx->orig, roi);
+
+                    if (pic.cols < 24 || pic.rows < 24) {
+                        cv::resize(pic, pic, cv::Size(pic.cols * 1.5, pic.rows * 1.5));
+                    }
+
+                    cv::imwrite(fname.str(), pic);
+                    std::cout << fname.str() << " saved" << std::endl;
+                }
+            }
+            break;
+
+        case cv::EVENT_MOUSEMOVE:
+            if (ctx->pressed) {
+                draw_rubber_lines(ctx, x, y);
+                cv::imshow("main", ctx->frame);
+            }
+            break;
+    }
+}
+
 int main(int argc, char **argv)
 {
 	if (parse_args(argc, argv) < 0) {
@@ -60,6 +164,12 @@ int main(int argc, char **argv)
 		return -1;
 	}
 
+    struct Ctx ctx;
+    ctx.pressed = false;
+    ctx.frame = img;
+    ctx.orig = img.clone();
+    ctx.count = 0;
+
 	cv::CascadeClassifier cc(_cas_fname);
 	std::vector<cv::Rect> rcs;
 
@@ -70,6 +180,8 @@ int main(int argc, char **argv)
 	fprintf(stderr, "using %.3f seconds!\n", t2 - t1);
 
 	cv::namedWindow("main");
+    cv::setMouseCallback("main", mouse_callback, &ctx);
+
 	for (std::vector<cv::Rect>::const_iterator it = rcs.begin(); it != rcs.end(); ++it) {
 		cv::rectangle(img, *it, cv::Scalar(0, 0, 255));
 	}
