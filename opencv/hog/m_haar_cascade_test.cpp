@@ -53,6 +53,7 @@ struct Ctx
     bool pressed; // 鼠标按下
     cv::Point first_pt, last_pt;
     int count;
+    std::vector<cv::Rect> faces;    // 探测到的矩形 ..
 };
 
 static void draw_recv_xor(cv::Mat &img, const cv::Rect &rc)
@@ -103,6 +104,11 @@ static void draw_rubber_lines(struct Ctx *ctx, int x, int y)
 
 static time_t _begin = time(0);
 
+static bool in_rect(const cv::Rect &rc, int x, int y)
+{
+    return x > rc.x && x < rc.x + rc.width && y > rc.y && y < rc.y + rc.height;
+}
+
 static void mouse_callback(int ev, int x, int y, int flags, void *p)
 {
     /** 在显示窗口中，通过鼠标，画出检测错的的区域，保存到 neg/ 目录中
@@ -110,6 +116,21 @@ static void mouse_callback(int ev, int x, int y, int flags, void *p)
     struct Ctx *ctx = (struct Ctx*)p;
 
     switch (ev) {
+        case cv::EVENT_RBUTTONDBLCLK:
+            for (std::vector<cv::Rect>::const_iterator it = ctx->faces.begin(); 
+                 it != ctx->faces.end(); ++it) {
+                if (in_rect(*it, x, y)) {
+                    // 说明这个误检！
+                    std::stringstream fname;
+                    fname << "neg/hard_neg_" << _begin << ctx->count++ << ".jpg";
+                    cv::Mat pic = cv::Mat(ctx->orig, *it);
+
+                    cv::imwrite(fname.str(), pic);
+                    std::cout << fname.str() << " saved" << std::endl;
+                }
+            }
+            break;
+
         case cv::EVENT_LBUTTONDOWN:
             ctx->pressed = true;
             ctx->first_pt = cv::Point(x, y);
@@ -128,12 +149,10 @@ static void mouse_callback(int ev, int x, int y, int flags, void *p)
                 }
                 else {
                     std::stringstream fname;
-                    fname << "neg/hard_neg_" << _begin << ctx->count++ << ".jpg";
+                    fname << "pos/hard_pos_" << _begin << ctx->count++ << ".jpg";
                     cv::Mat pic = cv::Mat(ctx->orig, roi);
 
-                    if (pic.cols < 24 || pic.rows < 24) {
-                        cv::resize(pic, pic, cv::Size(pic.cols * 1.5, pic.rows * 1.5));
-                    }
+                    cv::resize(pic, pic, cv::Size(64, 64));
 
                     cv::imwrite(fname.str(), pic);
                     std::cout << fname.str() << " saved" << std::endl;
@@ -173,9 +192,17 @@ int main(int argc, char **argv)
 	cv::CascadeClassifier cc(_cas_fname);
 	std::vector<cv::Rect> rcs;
 
+    cv::resize(img, img, cv::Size(480*1.5, 270*1.5));
+
+    double scale_factor = 1.1;
+    int min_neighbors = 3;
+    cv::Size minSize(0, 0);
+    cv::Size maxSize(80, 80);
+
 	double t1 = util_now();
-	cc.detectMultiScale(img, rcs);
+	cc.detectMultiScale(img, rcs, scale_factor, min_neighbors, 0, minSize, maxSize);
 	double t2 = util_now();
+    ctx.faces = rcs;
 
 	fprintf(stderr, "using %.3f seconds!\n", t2 - t1);
 
