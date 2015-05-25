@@ -10,11 +10,11 @@
 #include <stdlib.h>
 #include <iostream>
 #include <opencv2/opencv.hpp>
+#include <cc++/file.h>
 #include <string>
 #include <opencv2/nonfree/nonfree.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <sstream>
-#include "util.h"
 #include <sys/stat.h>
 
 #define WIDTH 24
@@ -30,7 +30,7 @@ struct Context
 	bool is_neg;	// 是否指针负样本.
     unsigned int sample_cnt;
 
-	std::string input_fname; // 输入是图片列表文件.
+	std::string dname; // path of raws images
 };
 
 static void rotateMe(const cv::Mat &src, cv::Mat &dst, const cv::Rect rc, int angle)
@@ -215,13 +215,41 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 			}
 		}
 		else {
-			ctx->input_fname = argv[arg];
+			ctx->dname = argv[arg];
 		}
 
 		arg++;
 	}
 
 	return 0;
+}
+
+static bool is_imgfile(const char *fname)
+{
+	const char *ext = ost::File::getExtension(fname);
+	return !strcmp(ext, ".png") || !strcmp(ext, ".jpg") || !strcmp(ext, ".jpeg");
+}
+
+static std::vector<std::string> load_files(const char *dname)
+{
+	std::vector<std::string> fnames;
+	ost::Dir dir(dname);
+	const char *name = dir++;
+	while (name) {
+
+		fprintf(stderr, "== name=%s\n", name);
+
+		if (is_imgfile(name)) {
+			char fname[260];
+			snprintf(fname, sizeof(fname), "%s/%s", dname, name);
+
+			fnames.push_back(fname);
+		}
+
+		name = dir++;
+	}
+
+	return fnames;
 }
 
 int main(int argc, const char * argv[])
@@ -235,12 +263,12 @@ int main(int argc, const char * argv[])
 		return -1;
 	}
 
-	if (ctx.input_fname.empty()) {
-		fprintf(stderr, "ERR: MUST input image_list_file_name\n");
+	if (ctx.dname.empty()) {
+		fprintf(stderr, "ERR: MUST input image_path\n");
 		return -1;
 	}
 
-	std::vector<std::string> files = util_load_image_list(ctx.input_fname.c_str());
+	std::vector<std::string> files = load_files(ctx.dname.c_str());
 	if (files.empty()) {
 		fprintf(stderr, "ERR: NO image files\n");
 		return -1;

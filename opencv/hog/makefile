@@ -1,7 +1,7 @@
 all: m_prepare m_hog_train m_hog_test m_cas_test m_neg_maker test_rotate
 
 CFLAGS=`pkg-config --cflags opencv`
-LDFLAGS=`pkg-config --libs opencv`
+LDFLAGS=`pkg-config --libs opencv` `pkg-config --libs libccgnu2`
 
 util.o: util.cpp util.h
 	$(CXX) -o $@ -c -O2 util.cpp $(CFLAGS)
