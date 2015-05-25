@@ -1,2 +1,2 @@
-opencv_traincascade -vec faces_16_16.vec -bg bg.txt -info info.dat -numPos 1500 -numNeg 2000 -data cascade_16_16/ -precalcValBufSize 2048 -precalcIdxBufSize 2048 -w 16 -h 16 -featureType hog -numStages 25
+opencv_traincascade -vec faces_24_24.vec -bg bg.txt -info info.dat -numPos 800 -numNeg 4000 -data cascade_24_24/ -precalcValBufSize 2048 -precalcIdxBufSize 2048 -w 24 -h 24
 

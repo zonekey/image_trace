@@ -17,8 +17,8 @@
 #include "util.h"
 #include <sys/stat.h>
 
-#define WIDTH 64
-#define HEIGHT 64
+#define WIDTH 24
+#define HEIGHT 24
 
 struct Context
 {
@@ -114,6 +114,8 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss2.str(), m2);
 
+#if 1
+
 					// 顺时针旋转 30 度，每隔3度 
 					for (int angle = 2; angle <= 30 && !ctx->is_neg; angle += 3) {
 						cv::Mat rp;
@@ -131,6 +133,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 						ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
 						cv::imwrite(ss2.str(), rp);
 					}
+#endif // 0
 
 					if (ctx->is_neg) {
 						char fname[128];
@@ -162,6 +165,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					std::cout << ss.str() << " saved!" << std::endl;
                 }
             }
+            break;
             
         case cv::EVENT_MOUSEMOVE:
             if (pressed) {
@@ -175,6 +179,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 				cv::rectangle(ctx->current_frame, rc, color);
 				cv::imshow("main", ctx->current_frame);
             }
+            break;
             
         default:
             break;
@@ -264,8 +269,8 @@ int main(int argc, const char * argv[])
 		}
 	}
 
-	if (pic.cols >= 1920) {
-		cv::resize(pic, pic, cv::Size(800, 600));
+	if (pic.cols >= 1800) {
+		cv::resize(pic, pic, cv::Size(960, 540));
 	}
 
 	if (pic.cols > 0) {
@@ -302,8 +307,8 @@ int main(int argc, const char * argv[])
 				}
 			}
 
-			if (pic.cols > 1920) {
-				cv::resize(pic, pic, cv::Size(800, 600));
+			if (pic.cols >= 1800) {
+				cv::resize(pic, pic, cv::Size(960, 540));
 			}
 
 			ctx.current_frame = pic.clone();

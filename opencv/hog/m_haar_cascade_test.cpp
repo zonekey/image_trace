@@ -2,9 +2,11 @@
 #include <stdlib.h>
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
+#include <opencv2/nonfree/nonfree.hpp>
 #include <sys/time.h>
 
 static std::string _cas_fname = "cascade/cascade.xml";
+static std::string _eye_fname = "/usr/local/share/OpenCV/haarcascades/haarcascade_eye.xml";
 static std::string _input_fname;
 
 static double util_now()
@@ -169,6 +171,18 @@ static void mouse_callback(int ev, int x, int y, int flags, void *p)
     }
 }
 
+static void draw_feature_kp(cv::Mat &img)
+{
+    std::vector<cv::KeyPoint> kps;
+    cv::SURF det;
+    det.detect(img, kps);
+
+    for (int i = 0; i < kps.size(); i++) {
+        cv::circle(img, cv::Point(int(kps[i].pt.x), int(kps[i].pt.y)), 2, cv::Scalar(0, 255, 0));
+        fprintf(stderr, "\tsize=%f, angle=%f, response=%f\n", kps[i].size, kps[i].angle, kps[i].response);
+    }
+}
+
 int main(int argc, char **argv)
 {
 	if (parse_args(argc, argv) < 0) {
@@ -189,18 +203,18 @@ int main(int argc, char **argv)
     ctx.orig = img.clone();
     ctx.count = 0;
 
-	cv::CascadeClassifier cc(_cas_fname);
+	cv::CascadeClassifier cc(_cas_fname), cc_eye(_eye_fname);
 	std::vector<cv::Rect> rcs;
 
-    cv::resize(img, img, cv::Size(480*1.5, 270*1.5));
+    //cv::resize(img, img, cv::Size(960, 540));
 
-    double scale_factor = 1.1;
+    double scale_factor = 1.05;
     int min_neighbors = 3;
-    cv::Size minSize(0, 0);
-    cv::Size maxSize(80, 80);
+    cv::Size minSize(30, 30);
+    cv::Size maxSize(180, 180);
 
 	double t1 = util_now();
-	cc.detectMultiScale(img, rcs, scale_factor, min_neighbors, 0, minSize, maxSize);
+	cc.detectMultiScale(img, rcs, scale_factor, min_neighbors); // , 0, minSize, maxSize);
 	double t2 = util_now();
     ctx.faces = rcs;
 
@@ -210,7 +224,18 @@ int main(int argc, char **argv)
     cv::setMouseCallback("main", mouse_callback, &ctx);
 
 	for (std::vector<cv::Rect>::const_iterator it = rcs.begin(); it != rcs.end(); ++it) {
+        std::vector<cv::Rect> eyes;
+        cv::Mat face(img, *it);
+        cc_eye.detectMultiScale(face, eyes);
 		cv::rectangle(img, *it, cv::Scalar(0, 0, 255));
+
+        fprintf(stderr, "eyes: %d\n", eyes.size());
+
+        for (std::vector<cv::Rect>::const_iterator it_e = eyes.begin(); it_e != eyes.end(); ++it_e) {
+            cv::rectangle(face, *it_e, cv::Scalar(0, 255, 0));
+        }
+
+        draw_feature_kp(face);
 	}
 	
 	cv::imshow("main", img);
