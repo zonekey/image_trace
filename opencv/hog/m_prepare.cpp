@@ -30,6 +30,11 @@ struct Context
     unsigned int sample_cnt;
 
 	std::string dname; // path of raws images
+
+	std::vector<std::string> files;	// 逐次显示的图像文件.
+	cv::VideoCapture cap;	// 对应视频文件.
+
+	std::vector<std::string>::const_iterator it_file;
 };
 
 static void rotateMe(const cv::Mat &src, cv::Mat &dst, const cv::Rect rc, int angle)
@@ -232,9 +237,6 @@ static std::vector<std::string> load_files(const char *dname)
 	ost::Dir dir(dname);
 	const char *name = dir++;
 	while (name) {
-
-		fprintf(stderr, "== name=%s\n", name);
-
 		if (is_imgfile(name)) {
 			char fname[260];
 			snprintf(fname, sizeof(fname), "%s/%s", dname, name);
@@ -246,6 +248,42 @@ static std::vector<std::string> load_files(const char *dname)
 	}
 
 	return fnames;
+}
+
+static cv::Mat next_frame(Context *ctx)
+{
+	if (!ctx->files.empty()) {
+		if (ctx->it_file != ctx->files.end()) {
+			std::string f = *ctx->it_file;
+			++ctx->it_file;
+			fprintf(stderr, "INFO: load %s\n", f.c_str());
+
+			cv::Mat m = cv::imread(f);
+			if (m.cols) {
+				cv::resize(m, m, cv::Size(480, 270));
+				return m;
+			}
+			else {
+				fprintf(stderr, "ERR: load %s err\n", f.c_str());
+			}
+
+			return m;
+		}
+		else {
+			fprintf(stderr, "INFO: no more images\n");
+			return cv::Mat();
+		}
+	}
+	else {
+		cv::Mat frame;
+		if (ctx->cap.read(frame)) {
+			cv::resize(frame, frame, cv::Size(480, 270));
+			return frame;
+		}
+		else {
+			return cv::Mat();
+		}
+	}
 }
 
 int main(int argc, const char * argv[])
@@ -264,6 +302,59 @@ int main(int argc, const char * argv[])
 		return -1;
 	}
 
+	struct stat st;
+	if (stat(ctx.dname.c_str(), &st) < 0) {
+		fprintf(stderr, "ERR: can't stat %s\n", ctx.dname.c_str());
+		return -2;
+	}
+
+	if (st.st_mode & S_IFDIR) {
+		ctx.files = load_files(ctx.dname.c_str());
+		ctx.it_file = ctx.files.begin();
+		fprintf(stderr, "INFO: load %u samples\n", ctx.files.size());
+	}
+	else {
+		if (!ctx.cap.open(ctx.dname)) {
+			fprintf(stderr, "ERR: can't open VideoCapture using %s\n", ctx.dname.c_str());
+			return -1;
+		}
+	}
+
+	cv::namedWindow("main");
+	bool quit = false;
+
+    cv::setMouseCallback("main", mouse_callback, &ctx);
+
+	cv::Mat pic = next_frame(&ctx);
+	if (pic.cols == 0) {
+		return -1;
+	}
+
+	ctx.current_frame = pic.clone();
+
+	while (!quit) {
+		if (ctx.mouse_pressed) {
+			ctx.current_frame = pic.clone();
+		}
+
+		if (!ctx.mouse_pressed) {
+			cv::imshow("main", ctx.current_frame);
+		}
+        
+		int key = cv::waitKey(30);
+        if (key == 27) {
+			fprintf(stderr, "key: ESC\n");
+            quit = true;
+        }
+		else if (key == 32) {
+			pic = next_frame(&ctx);
+			ctx.current_frame = pic.clone();
+			ctx.mouse_pressed = false;
+		}
+	}
+
+
+#if 0
 	std::vector<std::string> files = load_files(ctx.dname.c_str());
 	if (files.empty()) {
 		fprintf(stderr, "ERR: NO image files\n");
@@ -291,6 +382,7 @@ int main(int argc, const char * argv[])
 		else {
 			fprintf(stderr, "ERR: read img %s err\n", files.back().c_str());
 		}
+
 	}
 
 	if (pic.cols >= 1800) {
@@ -339,6 +431,7 @@ int main(int argc, const char * argv[])
 			ctx.mouse_pressed = false;
 		}
     }
+#endif
 
     return 0;
 }
