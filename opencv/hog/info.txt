@@ -1,2 +1,0 @@
-pos/cc_pos_4398.jpg 1 0 0 24 24
-pos/cc_pos_4399.jpg 1 0 0 24 24
