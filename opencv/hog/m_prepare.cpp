@@ -113,8 +113,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
                     cv::imwrite(ss2.str(), m2);
 
-#if 1
-
 					// 顺时针旋转 30 度，每隔3度 
 					for (int angle = 2; angle <= 30 && !ctx->is_neg; angle += 3) {
 						cv::Mat rp;
@@ -132,7 +130,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 						ss2 << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
 						cv::imwrite(ss2.str(), rp);
 					}
-#endif // 0
 
 					if (ctx->is_neg) {
 						char fname[128];
