@@ -1,4 +1,4 @@
-all: m_prepare m_hog_train m_hog_test m_cas_test m_neg_maker test_rotate
+all: m_prepare m_neg_maker test_rotate
 
 CFLAGS=`pkg-config --cflags opencv`
 LDFLAGS=`pkg-config --libs opencv` `pkg-config --libs libccgnu2`

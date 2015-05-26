@@ -12,7 +12,6 @@
 #include <opencv2/opencv.hpp>
 #include <cc++/file.h>
 #include <string>
-#include <opencv2/nonfree/nonfree.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <sstream>
 #include <sys/stat.h>
