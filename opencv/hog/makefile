@@ -1,4 +1,4 @@
-all: m_prepare m_neg_maker test_rotate
+all: m_prepare m_neg_maker test_det
 
 CFLAGS=`pkg-config --cflags opencv`
 LDFLAGS=`pkg-config --libs opencv` `pkg-config --libs libccgnu2`
@@ -24,7 +24,10 @@ m_neg_maker: m_neg_maker.cpp
 test_rotate: test_rotate.cpp
 	$(CXX) -o $@ -O2 $(CFLAGS) $^ $(LDFLAGS)
 
+test_det: test_det.cpp
+	$(CXX) -o $@ -O2 $(CFLAGS) $^ $(LDFLAGS)
+
 clean:
-	rm -f m_prepare m_hog_train m_hog_test m_neg_maker
+	rm -f m_prepare m_hog_train m_hog_test m_neg_maker test_det
 	rm -f *.o
 

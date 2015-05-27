@@ -19,10 +19,18 @@
 #define WIDTH 24
 #define HEIGHT 24
 
-struct Context
+class Context
 {
+public:
+	Context()
+	{
+		width = WIDTH, height = HEIGHT;
+		mouse_pressed = false;
+		is_neg = false;
+		sample_cnt = 0;
+	}
+
     cv::Mat current_frame;
-    
     bool mouse_pressed;
     cv::Point first_pt, second_pt;
     
@@ -35,6 +43,8 @@ struct Context
 	cv::VideoCapture cap;	// 对应视频文件.
 
 	std::vector<std::string>::const_iterator it_file;
+
+	int width, height;
 };
 
 static void rotateMe(const cv::Mat &src, cv::Mat &dst, const cv::Rect rc, int angle)
@@ -107,7 +117,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 
 					// 拉伸为 WIDTH * HEIGHT
                     cv::Mat m(ctx->current_frame, rc), m2;
-					cv::resize(m, m2, cv::Size(WIDTH, HEIGHT));
+					cv::resize(m, m2, cv::Size(ctx->width, ctx->height));
 
                     std::stringstream ss;
 					ss << (ctx->is_neg ? "neg/neg_" : "pos/pos_") << ctx->sample_cnt++ << ".jpg";
@@ -122,8 +132,8 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 					for (int angle = 2; angle <= 30 && !ctx->is_neg; angle += 3) {
 						cv::Mat rp;
 						rotateMe(ctx->current_frame, rp, rc, angle);
-						if (rp.cols != WIDTH || rp.rows != HEIGHT) {
-							cv::resize(rp, rp, cv::Size(WIDTH, HEIGHT));
+						if (rp.cols != ctx->width || rp.rows != ctx->height) {
+							cv::resize(rp, rp, cv::Size(ctx->width, ctx->height));
 						}
 
 						std::stringstream ss;
@@ -138,8 +148,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 
 					if (ctx->is_neg) {
 						char fname[128];
-
-						resize(m2, m2, cv::Size(WIDTH*2, HEIGHT*2));
 
 						// XXX: 
 						cv::flip(m2, m2, 0); // 上下翻转.
@@ -193,8 +201,9 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 
 	/**
 		-neg
-		-cnt_begin
-
+		-cnt_begin <base cnt>
+		-w <width>
+		-h <height>
 	 */
 
 	while (arg < argc) {
@@ -211,6 +220,28 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 				}
 				else {
 					fprintf(stderr, "ERR: -cnt_begin N\n");
+					return -1;
+				}
+			}
+			else if (!strcmp(&argv[arg][1], "w")) {
+				// width
+				if (arg + 1 <= argc) {
+					ctx->width = atoi(argv[arg+1]);
+					arg++;
+				}
+				else {
+					fprintf(stderr, "ERR: -w WIDTH\n");
+					return -1;
+				}
+			}
+			else if (!strcmp(&argv[arg][1], "h")) {
+				// height
+				if (arg + 1 <= argc) {
+					ctx->height = atoi(argv[arg+1]);
+					arg++;
+				}
+				else {
+					fprintf(stderr, "ERR: -h HEIGHT\n");
 					return -1;
 				}
 			}
