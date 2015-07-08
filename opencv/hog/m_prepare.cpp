@@ -359,6 +359,19 @@ int main(int argc, const char * argv[])
 	}
 
 	struct stat st;
+	if (stat(ctx.out.c_str(), &st) < 0) {
+		fprintf(stderr, "WARNING: %s not exist, just create it\n", 
+				ctx.out.c_str());
+		mkdir(ctx.out.c_str(), S_ISUID|S_IRWXU);
+	}
+	else {
+		if (!S_ISDIR(st.st_mode)) {
+			fprintf(stderr, "ERR: %s is NOT a DIR\n",
+					ctx.out.c_str());
+			return -1;
+		}
+	}
+
 	if (stat(ctx.dname.c_str(), &st) < 0) {
 		fprintf(stderr, "ERR: can't stat %s\n", ctx.dname.c_str());
 		return -2;
