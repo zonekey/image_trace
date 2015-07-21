@@ -303,6 +303,7 @@ static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 			cv::resize(frame, frame, cv::Size(720, 405));
 			_cnt++;
 			cnt = _cnt;
+			ok = true;
 			return frame;
 		}
 		else {
@@ -369,8 +370,14 @@ int main(int argc, const char * argv[])
 	size_t cnt;
 	cv::Mat pic = next_frame(&ctx, ok, cnt);
 	if (!ok) {
-		fprintf(stderr, "ERR: load first frame err!!!!\n");
-		return -1;
+		for (int i = 0; i < 10 && !ok; i++) {
+			pic = next_frame(&ctx, ok, cnt);
+		}
+
+		if (!ok) {
+			fprintf(stderr, "ERR: load first frame err!!!!\n");
+			return -1;
+		}
 	}
 
 	ctx.current_frame = pic.clone();
