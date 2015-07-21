@@ -26,7 +26,6 @@ public:
 	{
 		width = WIDTH, height = HEIGHT;
 		mouse_pressed = false;
-		is_neg = false;
 		sample_cnt = 0;
 		out = "pos";
 	}
@@ -35,7 +34,6 @@ public:
     bool mouse_pressed;
     cv::Point first_pt, second_pt;
     
-	bool is_neg;	// 是否指针负样本.
     unsigned int sample_cnt;
 
 	std::string dname; // path of raws images
@@ -98,7 +96,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
                 }
                 else {
 					cv::Mat m2;
-					if (!ctx->is_neg) {
+					if (1) {
 						// 不能变形:
 						if (rc.width < rc.height) {
 							rc.x -= (rc.height - rc.width) / 2;
@@ -123,10 +121,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
             	        cv::Mat m(ctx->current_frame, rc);
 						cv::resize(m, m2, cv::Size(ctx->width, ctx->height));
 					}
-					else {
-						// 负样本不进行拉伸
-						m2 = cv::Mat(ctx->current_frame, rc);
-					}
 
                     std::stringstream ss;
 					ss << ctx->out << "/" << ctx->sample_cnt++ << ".jpg";
@@ -138,7 +132,7 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
                     cv::imwrite(ss2.str(), m2);
 
 					// 顺时针旋转 30 度，每隔3度 
-					for (int angle = 2; angle <= 15 && !ctx->is_neg; angle += 2) {
+					for (int angle = 2; angle <= 15; angle += 2) {
 						cv::Mat rp;
 						rotateMe(ctx->current_frame, rp, rc, angle);
 						if (rp.cols != ctx->width || rp.rows != ctx->height) {
@@ -155,31 +149,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
 						cv::imwrite(ss2.str(), rp);
 					}
 
-					if (ctx->is_neg) {
-						char fname[128];
-
-						// XXX: 
-						cv::flip(m2, m2, 0); // 上下翻转.
-						sprintf(fname, "%s/neg_%u.jpg", ctx->out.c_str(), ctx->sample_cnt++);
-						cv::imwrite(fname, m2);
-						
-						cv::flip(m2, m2, 1); // 左右.
-						sprintf(fname, "%s/neg_%u.jpg", ctx->out.c_str(), ctx->sample_cnt++);
-						cv::imwrite(fname, m2);
-
-						cv::transpose(m2, m2);
-						sprintf(fname, "%s/neg_%u.jpg", ctx->out.c_str(), ctx->sample_cnt++);
-						cv::imwrite(fname, m2);
-
-						cv::flip(m2, m2, 1);
-						sprintf(fname, "%s/neg_%u.jpg", ctx->out.c_str(), ctx->sample_cnt++);
-						cv::imwrite(fname, m2);
-
-						cv::flip(m2, m2, -1);
-						sprintf(fname, "%s/neg_%u.jpg", ctx->out.c_str(), ctx->sample_cnt++);
-						cv::imwrite(fname, m2);
-					}
-
 					std::cout << ss.str() << " saved!" << std::endl;
                 }
             }
@@ -188,10 +157,6 @@ static void mouse_callback(int event, int x, int y, int flags, void* userdata)
         case cv::EVENT_MOUSEMOVE:
             if (pressed) {
 				cv::Scalar color = cv::Scalar(0, 0, 255);
-				if (ctx->is_neg) {
-					color = cv::Scalar(0, 255, 0);
-				}
-
                 ctx->second_pt = cv::Point(x, y);
 				cv::Rect rc(ctx->first_pt, ctx->second_pt);
 				cv::rectangle(ctx->current_frame, rc, color);
@@ -212,7 +177,6 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 	int arg = 1;
 
 	/**
-		-neg
 		-cnt_begin <base cnt>
 		-w <width>
 		-h <height>
@@ -221,11 +185,7 @@ static int parse_args(int argc, const char **argv, Context *ctx)
 
 	while (arg < argc) {
 		if (argv[arg][0] == '-') {
-			if (!strcmp(&argv[arg][1], "neg")) {
-				// -neg 制作负样本 .
-				ctx->is_neg = true;
-			}
-			else if (!strcmp(&argv[arg][1], "cnt_begin")) {
+			if (!strcmp(&argv[arg][1], "cnt_begin")) {
 				// -cnt_begin <N> 命名的 ..
 				if (arg + 1 <= argc) {
 					ctx->sample_cnt = atoi(argv[arg+1]);
@@ -305,8 +265,10 @@ static std::vector<std::string> load_files(const char *dname)
 	return fnames;
 }
 
-static cv::Mat next_frame(Context *ctx)
+static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 {
+	static size_t _cnt = 0;
+
 	if (!ctx->files.empty()) {
 		if (ctx->it_file != ctx->files.end()) {
 			std::string f = *ctx->it_file;
@@ -315,27 +277,37 @@ static cv::Mat next_frame(Context *ctx)
 
 			cv::Mat m = cv::imread(f);
 			if (m.cols) {
-				cv::resize(m, m, cv::Size(640, 360));
+				cv::resize(m, m, cv::Size(720, 405));
+				ok = true;
+				_cnt++;
+				cnt = _cnt;
 				return m;
 			}
 			else {
+				ok = false;
+				cnt = _cnt;
 				fprintf(stderr, "ERR: load %s err\n", f.c_str());
+				return m;
 			}
-
-			return m;
 		}
 		else {
 			fprintf(stderr, "INFO: no more images\n");
+			ok = false;
+			cnt = _cnt;
 			return cv::Mat();
 		}
 	}
 	else {
 		cv::Mat frame;
 		if (ctx->cap.read(frame)) {
-			cv::resize(frame, frame, cv::Size(640, 360));
+			cv::resize(frame, frame, cv::Size(720, 405));
+			_cnt++;
+			cnt = _cnt;
 			return frame;
 		}
 		else {
+			ok = false;
+			cnt = _cnt;
 			return cv::Mat();
 		}
 	}
@@ -346,7 +318,6 @@ int main(int argc, const char * argv[])
     Context ctx;
     ctx.sample_cnt = 0;
 	ctx.mouse_pressed = false;
-	ctx.is_neg = false;
 
 	if (parse_args(argc, argv, &ctx) < 0) {
 		return -1;
@@ -354,7 +325,7 @@ int main(int argc, const char * argv[])
 
 	if (ctx.dname.empty()) {
 		fprintf(stderr, "ERR: MUST input image_path\n");
-		fprintf(stderr, "usage: %s [-w WIDTH] [-h HEIGHT] [-cnt_begin BASE(def 0)] source [-out PATH(def 'pos')] [-neg]\n", argv[0]);
+		fprintf(stderr, "usage: %s [-w WIDTH] [-h HEIGHT] [-cnt_begin BASE(def 0)] source [-out PATH(def 'pos')]\n", argv[0]);
 		return -1;
 	}
 
@@ -394,8 +365,11 @@ int main(int argc, const char * argv[])
 
     cv::setMouseCallback("main", mouse_callback, &ctx);
 
-	cv::Mat pic = next_frame(&ctx);
-	if (pic.cols == 0) {
+	bool ok;
+	size_t cnt;
+	cv::Mat pic = next_frame(&ctx, ok, cnt);
+	if (!ok) {
+		fprintf(stderr, "ERR: load first frame err!!!!\n");
 		return -1;
 	}
 
@@ -410,15 +384,44 @@ int main(int argc, const char * argv[])
 			cv::imshow("main", ctx.current_frame);
 		}
         
-		int key = cv::waitKey(30);
+		int key = cv::waitKey(40);
         if (key == 27) {
 			fprintf(stderr, "key: ESC\n");
             quit = true;
         }
 		else if (key == 32) {
-			pic = next_frame(&ctx);
+			pic = next_frame(&ctx, ok, cnt);
+			if (!ok) {
+				fprintf(stderr, "ERR: load frame err, just exit!\n");
+				quit = true;
+				continue;
+			}
+			char fs[16];
+			snprintf(fs, sizeof(fs), "%u", cnt); 
+			cv::putText(pic, fs, cv::Point(0, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(0, 0, 255));
 			ctx.current_frame = pic.clone();
 			ctx.mouse_pressed = false;
+		}
+		else if (key == 0xff56) {
+			// page down
+			for (int i = 0; i < 10; i++) {
+				pic = next_frame(&ctx, ok, cnt);
+				if (!ok) {
+					fprintf(stderr, "ERR: load frame err, just exit!\n");
+					quit = true;
+					break;
+				}
+			}
+			if (!quit) {
+				char fs[16];
+				snprintf(fs, sizeof(fs), "%u", cnt); 
+				cv::putText(pic, fs, cv::Point(0, 30), cv::FONT_HERSHEY_PLAIN, 2.0, cv::Scalar(0, 0, 255));
+				ctx.current_frame = pic.clone();
+				ctx.mouse_pressed = false;
+			}
+		}
+		else if (key != -1) {
+			fprintf(stderr, "key=%x\n", key);
 		}
 	}
 

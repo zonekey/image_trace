@@ -13,8 +13,8 @@ public:
 		source_ = "233.mp4";
 		width_ = 480;
 		height_ = 270;
-		//meta_ = "cascade_12_12/cascade.xml";
-		meta_ = "cascade_body_20_30/cascade.xml";
+		meta_ = "cascade_12_12/cascade.xml";
+		//meta_ = "cascade_body_20_30/cascade.xml";
 		
 		parse(argc, argv);
 	}
