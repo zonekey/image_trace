@@ -277,7 +277,7 @@ static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 
 			cv::Mat m = cv::imread(f);
 			if (m.cols) {
-				cv::resize(m, m, cv::Size(720, 405));
+				cv::resize(m, m, cv::Size(960, 540));
 				ok = true;
 				_cnt++;
 				cnt = _cnt;
@@ -300,7 +300,7 @@ static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 	else {
 		cv::Mat frame;
 		if (ctx->cap.read(frame)) {
-			cv::resize(frame, frame, cv::Size(720, 405));
+			cv::resize(frame, frame, cv::Size(960, 540));
 			_cnt++;
 			cnt = _cnt;
 			ok = true;
@@ -391,8 +391,8 @@ int main(int argc, const char * argv[])
 			cv::imshow("main", ctx.current_frame);
 		}
         
-		int key = cv::waitKey(40);
-        if (key == 27) {
+		int key = cv::waitKey(40) & 0xffff;
+        if (key == 0x1b) {
 			fprintf(stderr, "key: ESC\n");
             quit = true;
         }
@@ -427,7 +427,7 @@ int main(int argc, const char * argv[])
 				ctx.mouse_pressed = false;
 			}
 		}
-		else if (key != -1) {
+		else if (key != 0xffff) {
 			fprintf(stderr, "key=%x\n", key);
 		}
 	}
