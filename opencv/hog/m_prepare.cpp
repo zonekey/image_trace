@@ -19,6 +19,9 @@
 #define WIDTH 16
 #define HEIGHT 16
 
+#define VW 1280
+#define VH 720
+
 class Context
 {
 public:
@@ -277,7 +280,7 @@ static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 
 			cv::Mat m = cv::imread(f);
 			if (m.cols) {
-				cv::resize(m, m, cv::Size(960, 540));
+				cv::resize(m, m, cv::Size(VW, VH));
 				ok = true;
 				_cnt++;
 				cnt = _cnt;
@@ -300,7 +303,7 @@ static cv::Mat next_frame(Context *ctx, bool &ok, size_t &cnt)
 	else {
 		cv::Mat frame;
 		if (ctx->cap.read(frame)) {
-			cv::resize(frame, frame, cv::Size(960, 540));
+			cv::resize(frame, frame, cv::Size(VW, VH));
 			_cnt++;
 			cnt = _cnt;
 			ok = true;
